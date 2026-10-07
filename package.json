@@ -1,0 +1,37 @@
+{
+  "name": "securescan-ai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Production-grade AI-powered Website, API and Security Posture Scanner SaaS",
+  "author": "SecureScan AI Team",
+  "license": "UNLICENSED",
+  "packageManager": "pnpm@12.10.1",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev --parallel",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "test:unit": "turbo run test:unit",
+    "test:security": "turbo run test:security",
+    "typecheck": "turbo run typecheck",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
+    "db:generate": "pnpm --filter @securescan/database run db:generate",
+    "db:migrate": "pnpm --filter @securescan/database run db:migrate",
+    "db:seed": "pnpm --filter @securescan/database run db:seed"
+  },
+  "devDependencies": {
+    "@types/node": "^22.8.7",
+    "pg-mem": "^3.0.14",
+    "prettier": "^3.3.3",
+    "turbo": "^2.1.3",
+    "typescript": "^5.6.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "prisma",
+      "esbuild"
+    ]
+  }
+}

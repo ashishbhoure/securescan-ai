@@ -1,0 +1,25 @@
+{
+  "name": "@securescan/worker",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/main.js",
+    "dev": "tsx watch src/main.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@securescan/database": "workspace:*",
+    "@securescan/types": "workspace:*",
+    "@securescan/logger": "workspace:*",
+    "@securescan/scanner-core": "workspace:*",
+    "@securescan/security-rules": "workspace:*",
+    "@securescan/ai": "workspace:*",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.8.7",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}

@@ -1,0 +1,217 @@
+/**
+ * SecureScan AI - Security Rules Catalog
+ * Fully versioned deterministic security rules definitions.
+ */
+
+import { SecurityRuleDefinition, SecurityCategory, Severity } from '@securescan/types';
+
+export const SECURITY_RULES: Record<string, SecurityRuleDefinition> = {
+  'SEC-TLS-001': {
+    id: 'SEC-TLS-001',
+    name: 'Deprecated Insecure TLS Protocol Support',
+    category: SecurityCategory.TLS_SSL,
+    severity: Severity.HIGH,
+    version: '1.0.0',
+    description: 'The server negotiates deprecated cryptographic protocols (TLS 1.0, TLS 1.1, or SSLv3) susceptible to downgrade attacks.',
+    impact: 'Attackers can intercept and decrypt encrypted transit sessions via known protocol vulnerabilities (e.g. BEAST, POODLE).',
+    remediationTemplate: 'Disable SSLv3, TLS 1.0, and TLS 1.1 in your web server/load balancer configuration. Enforce TLS 1.2 and TLS 1.3 only.',
+    cwe: 'CWE-326',
+    owaspCategory: 'A02:2021-Cryptographic Failures',
+  },
+
+  'SEC-TLS-002': {
+    id: 'SEC-TLS-002',
+    name: 'Expired or Untrusted TLS/SSL Certificate',
+    category: SecurityCategory.TLS_SSL,
+    severity: Severity.CRITICAL,
+    version: '1.0.0',
+    description: 'The TLS certificate presented by the server has expired, is self-signed, or is not signed by a recognized Certificate Authority.',
+    impact: 'Browsers display blocking security warnings to users; communication is vulnerable to active machine-in-the-middle (MitM) eavesdropping.',
+    remediationTemplate: 'Renew your certificate immediately using an authorized CA (such as Let\'s Encrypt, AWS ACM, or DigiCert). Ensure automated renewal is configured.',
+    cwe: 'CWE-295',
+    owaspCategory: 'A07:2021-Identification and Authentication Failures',
+  },
+
+  'SEC-TLS-003': {
+    id: 'SEC-TLS-003',
+    name: 'TLS Certificate Expiring Soon',
+    category: SecurityCategory.TLS_SSL,
+    severity: Severity.MEDIUM,
+    version: '1.0.0',
+    description: 'The active TLS certificate will expire in less than 14 days.',
+    impact: 'If not renewed promptly, the site will suffer an outage accompanied by severe browser security warnings.',
+    remediationTemplate: 'Renew and deploy the new TLS certificate before the expiration date.',
+    cwe: 'CWE-298',
+  },
+
+  'SEC-TLS-004': {
+    id: 'SEC-TLS-004',
+    name: 'TLS Certificate Hostname Mismatch',
+    category: SecurityCategory.TLS_SSL,
+    severity: Severity.HIGH,
+    version: '1.0.0',
+    description: 'The Subject Alternative Names (SANs) or Common Name (CN) on the certificate do not match the requested hostname.',
+    impact: 'Clients cannot establish trust with the origin; browsers reject the connection.',
+    remediationTemplate: 'Issue a certificate covering the exact hostname or a matching wildcard domain (*.domain.com).',
+    cwe: 'CWE-297',
+  },
+
+  'SEC-HDR-001': {
+    id: 'SEC-HDR-001',
+    name: 'Missing Strict-Transport-Security (HSTS) Header',
+    category: SecurityCategory.SECURITY_HEADERS,
+    severity: Severity.MEDIUM,
+    version: '1.0.0',
+    description: 'The HTTP response lacks the Strict-Transport-Security header, allowing unencrypted initial HTTP connections.',
+    impact: 'Users are vulnerable to SSL-stripping attacks on insecure networks.',
+    remediationTemplate: 'Add the header: Strict-Transport-Security: max-age=31536000; includeSubDomains; preload',
+    cwe: 'CWE-319',
+    owaspCategory: 'A05:2021-Security Misconfiguration',
+  },
+
+  'SEC-HDR-002': {
+    id: 'SEC-HDR-002',
+    name: 'Missing Content-Security-Policy (CSP) Header',
+    category: SecurityCategory.SECURITY_HEADERS,
+    severity: Severity.MEDIUM,
+    version: '1.0.0',
+    description: 'The response does not declare a Content-Security-Policy header, leaving client-side execution unrestrained.',
+    impact: 'Significantly increases the risk of successful Cross-Site Scripting (XSS) and data injection attacks.',
+    remediationTemplate: 'Configure a strong Content-Security-Policy specifying trusted sources for scripts, styles, frames, and connections.',
+    cwe: 'CWE-1021',
+    owaspCategory: 'A05:2021-Security Misconfiguration',
+  },
+
+  'SEC-HDR-003': {
+    id: 'SEC-HDR-003',
+    name: 'Permissive CSP Unsafe Directive Detected',
+    category: SecurityCategory.SECURITY_HEADERS,
+    severity: Severity.LOW,
+    version: '1.0.0',
+    description: 'The Content-Security-Policy includes \'unsafe-inline\' or \'unsafe-eval\', diminishing XSS protection efficacy.',
+    impact: 'Attackers injecting scripts into page markup can execute arbitrary JavaScript despite CSP presence.',
+    remediationTemplate: 'Refactor inline scripts to external modules and utilize cryptographic nonces or hashes instead of \'unsafe-inline\'.',
+    cwe: 'CWE-1021',
+  },
+
+  'SEC-HDR-004': {
+    id: 'SEC-HDR-004',
+    name: 'Missing X-Content-Type-Options Header',
+    category: SecurityCategory.SECURITY_HEADERS,
+    severity: Severity.LOW,
+    version: '1.0.0',
+    description: 'The response lacks X-Content-Type-Options: nosniff, allowing browsers to MIME-sniff response bodies.',
+    impact: 'Untrusted user uploads (like images) can be interpreted and executed as HTML/JavaScript in older or non-standard user agents.',
+    remediationTemplate: 'Add the header: X-Content-Type-Options: nosniff',
+    cwe: 'CWE-79',
+  },
+
+  'SEC-HDR-005': {
+    id: 'SEC-HDR-005',
+    name: 'Missing Clickjacking Protection',
+    category: SecurityCategory.SECURITY_HEADERS,
+    severity: Severity.MEDIUM,
+    version: '1.0.0',
+    description: 'Neither X-Frame-Options nor CSP frame-ancestors is present to restrict embedding in iframes.',
+    impact: 'Malicious third-party sites can frame the application to trick authenticated users into unauthorized clicks (Clickjacking).',
+    remediationTemplate: 'Configure: X-Frame-Options: DENY (or SAMEORIGIN), or use Content-Security-Policy: frame-ancestors \'self\'.',
+    cwe: 'CWE-1021',
+  },
+
+  'SEC-HDR-006': {
+    id: 'SEC-HDR-006',
+    name: 'Missing or Insecure Referrer-Policy',
+    category: SecurityCategory.SECURITY_HEADERS,
+    severity: Severity.LOW,
+    version: '1.0.0',
+    description: 'The response does not explicitly specify a strict Referrer-Policy.',
+    impact: 'Sensitive URL parameters (tokens, session IDs) might leak to third-party domains via the Referer header.',
+    remediationTemplate: 'Configure: Referrer-Policy: strict-origin-when-cross-origin',
+    cwe: 'CWE-200',
+  },
+
+  'SEC-CK-001': {
+    id: 'SEC-CK-001',
+    name: 'Sensitive Cookie Missing Secure Flag',
+    category: SecurityCategory.COOKIE_SECURITY,
+    severity: Severity.HIGH,
+    version: '1.0.0',
+    description: 'A cookie containing authentication or session identifiers lacks the "Secure" attribute.',
+    impact: 'The cookie will be transmitted over plain HTTP connections if the user clicks an unencrypted link, leaking credentials in transit.',
+    remediationTemplate: 'Add the "; Secure" directive to all Set-Cookie instructions.',
+    cwe: 'CWE-614',
+    owaspCategory: 'A05:2021-Security Misconfiguration',
+  },
+
+  'SEC-CK-002': {
+    id: 'SEC-CK-002',
+    name: 'Sensitive Cookie Missing HttpOnly Flag',
+    category: SecurityCategory.COOKIE_SECURITY,
+    severity: Severity.HIGH,
+    version: '1.0.0',
+    description: 'A session or authentication cookie lacks the "HttpOnly" attribute.',
+    impact: 'The cookie is accessible via document.cookie in JavaScript, allowing attackers to steal sessions via XSS.',
+    remediationTemplate: 'Add the "; HttpOnly" directive to the Set-Cookie header.',
+    cwe: 'CWE-1004',
+  },
+
+  'SEC-CK-003': {
+    id: 'SEC-CK-003',
+    name: 'Cookie Missing SameSite Attribute',
+    category: SecurityCategory.COOKIE_SECURITY,
+    severity: Severity.MEDIUM,
+    version: '1.0.0',
+    description: 'A cookie does not declare a SameSite attribute (Lax or Strict).',
+    impact: 'Increases exposure to Cross-Site Request Forgery (CSRF) on cross-site requests.',
+    remediationTemplate: 'Add "; SameSite=Lax" or "; SameSite=Strict" to the cookie definition.',
+    cwe: 'CWE-352',
+  },
+
+  'SEC-EXP-001': {
+    id: 'SEC-EXP-001',
+    name: 'Detailed Server Banner Disclosure',
+    category: SecurityCategory.INFORMATION_EXPOSURE,
+    severity: Severity.LOW,
+    version: '1.0.0',
+    description: 'The web server discloses its software name and version in the Server header.',
+    impact: 'Aids attackers in reconnaissance to map exact CVEs associated with the disclosed server version.',
+    remediationTemplate: 'Configure server tokens to Off/Prod (e.g. ServerTokens Prod in Apache, server_tokens off in Nginx).',
+    cwe: 'CWE-200',
+  },
+
+  'SEC-EXP-002': {
+    id: 'SEC-EXP-002',
+    name: 'Backend Framework Header Disclosure',
+    category: SecurityCategory.INFORMATION_EXPOSURE,
+    severity: Severity.LOW,
+    version: '1.0.0',
+    description: 'The response includes an X-Powered-By header exposing backend framework details.',
+    impact: 'Assists malicious actors during technology profiling and exploit targeting.',
+    remediationTemplate: 'Remove the X-Powered-By header in your application framework (e.g. app.disable(\'x-powered-by\') in Express).',
+    cwe: 'CWE-200',
+  },
+
+  'SEC-DNS-001': {
+    id: 'SEC-DNS-001',
+    name: 'Missing DMARC Policy on Domain',
+    category: SecurityCategory.DNS_DOMAIN,
+    severity: Severity.LOW,
+    version: '1.0.0',
+    description: 'The domain does not publish a DMARC policy in DNS (_dmarc.domain.com).',
+    impact: 'Allows spoofed email senders to impersonate your organization\'s domain to recipients without rejection.',
+    remediationTemplate: 'Publish a TXT record at _dmarc.yourdomain.com with a valid policy (e.g. v=DMARC1; p=quarantine;).',
+    cwe: 'CWE-290',
+  },
+
+  'SEC-DNS-002': {
+    id: 'SEC-DNS-002',
+    name: 'Missing SPF Record on Domain',
+    category: SecurityCategory.DNS_DOMAIN,
+    severity: Severity.LOW,
+    version: '1.0.0',
+    description: 'The domain lacks a Sender Policy Framework (SPF) TXT record.',
+    impact: 'Mail receiving servers cannot verify which IP addresses are authorized to send email on behalf of your domain.',
+    remediationTemplate: 'Create a TXT record on your root domain declaring authorized mail servers (e.g. v=spf1 include:... ~all).',
+    cwe: 'CWE-290',
+  },
+};

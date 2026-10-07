@@ -1,0 +1,20 @@
+{
+  "name": "@securescan/scanner-core",
+  "version": "1.0.0",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@securescan/logger": "workspace:*",
+    "@securescan/types": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.8.7",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.3"
+  }
+}

@@ -1,0 +1,394 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ==========================================
+// User & Multi-Tenant Organization Models
+// ==========================================
+
+model User {
+  id              String               @id @default(uuid())
+  email           String               @unique
+  passwordHash    String
+  name            String?
+  isEmailVerified Boolean              @default(false)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  memberships     OrganizationMember[]
+  authorizations  AssetAuthorization[]
+  scansTriggered  Scan[]
+  auditLogs       AuditLog[]
+  apiKeys         ApiKey[]
+
+  @@index([email])
+}
+
+model Organization {
+  id          String               @id @default(uuid())
+  name        String
+  slug        String               @unique
+  planTier    String               @default("FREE")
+  maxAssets   Int                  @default(1)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  members     OrganizationMember[]
+  projects    Project[]
+  assets      Asset[]
+  scans       Scan[]
+  findings    Finding[]
+  reports     Report[]
+  auditLogs   AuditLog[]
+  apiKeys     ApiKey[]
+  authorizations AssetAuthorization[]
+
+  @@index([slug])
+}
+
+enum OrgRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+model OrganizationMember {
+  id             String       @id @default(uuid())
+  organizationId String
+  userId         String
+  role           OrgRole      @default(MEMBER)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([organizationId])
+  @@index([userId])
+}
+
+// ==========================================
+// Project & Asset Hierarchy
+// ==========================================
+
+model Project {
+  id             String       @id @default(uuid())
+  organizationId String
+  name           String
+  description    String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assets         Asset[]
+
+  @@index([organizationId])
+}
+
+enum AssetType {
+  WEBSITE
+  API
+  DOMAIN
+}
+
+enum AssetStatus {
+  DISCOVERED
+  PENDING_VERIFICATION
+  VERIFIED
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+model Asset {
+  id                 String               @id @default(uuid())
+  organizationId     String
+  projectId          String
+  type               AssetType            @default(WEBSITE)
+  targetUrl          String
+  status             AssetStatus          @default(PENDING_VERIFICATION)
+  verificationStatus String               @default("UNVERIFIED")
+  lastScanAt         DateTime?
+  lastScore          Int?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  organization       Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project            Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  authorizations     AssetAuthorization[]
+  scans              Scan[]
+  findings           Finding[]
+
+  @@index([organizationId])
+  @@index([projectId])
+  @@index([targetUrl])
+}
+
+enum VerificationMethod {
+  CONFIRMATION_CHECK
+  DNS_TXT
+  HTTP_TOKEN
+}
+
+model AssetAuthorization {
+  id                 String             @id @default(uuid())
+  assetId            String
+  organizationId     String
+  userId             String
+  method             VerificationMethod @default(CONFIRMATION_CHECK)
+  authorizedAt       DateTime           @default(now())
+  ipAddress          String
+  userAgent          String?
+  confirmedOwnership Boolean            @default(true)
+
+  asset              Asset              @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  organization       Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([assetId])
+  @@index([organizationId])
+}
+
+// ==========================================
+// Scan & Job Execution
+// ==========================================
+
+enum ScanStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model Scan {
+  id                String       @id @default(uuid())
+  organizationId    String
+  assetId           String
+  triggeredByUserId String?
+  status            ScanStatus   @default(QUEUED)
+  overallScore      Int?
+  grade             String?
+  startedAt         DateTime?
+  completedAt       DateTime?
+  durationMs        Int?
+  scannerVersion    String       @default("1.0.0")
+  createdAt         DateTime     @default(now())
+
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  asset             Asset        @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  triggeredByUser   User?        @relation(fields: [triggeredByUserId], references: [id], onDelete: SetNull)
+  jobs              ScanJob[]
+  findings          Finding[]
+  riskScore         RiskScore?
+  reports           Report[]
+
+  @@index([organizationId])
+  @@index([assetId])
+  @@index([status])
+}
+
+model ScanJob {
+  id          String     @id @default(uuid())
+  scanId      String
+  moduleName  String
+  status      ScanStatus @default(QUEUED)
+  error       String?
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  scan        Scan       @relation(fields: [scanId], references: [id], onDelete: Cascade)
+
+  @@index([scanId])
+}
+
+// ==========================================
+// Findings, Rules & Evidence
+// ==========================================
+
+enum Severity {
+  INFO
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum FindingStatus {
+  OPEN
+  ACKNOWLEDGED
+  IN_PROGRESS
+  RESOLVED
+  FALSE_POSITIVE
+  ACCEPTED_RISK
+}
+
+model Finding {
+  id             String          @id @default(uuid())
+  organizationId String
+  scanId         String
+  assetId        String
+  ruleId         String
+  title          String
+  category       String
+  severity       Severity
+  status         FindingStatus   @default(OPEN)
+  confidence     String          @default("CONFIRMED")
+  description    String
+  impact         String
+  remediation    String
+  fingerprint    String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  scan           Scan            @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  asset          Asset           @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  rule           SecurityRule    @relation(fields: [ruleId], references: [id])
+  evidence       FindingEvidence?
+  aiAnalysis     AIAnalysis?
+
+  @@index([organizationId])
+  @@index([scanId])
+  @@index([assetId])
+  @@index([severity])
+  @@index([status])
+  @@index([fingerprint])
+}
+
+model FindingEvidence {
+  id          String   @id @default(uuid())
+  findingId   String   @unique
+  summary     String
+  details     Json
+  createdAt   DateTime @default(now())
+
+  finding     Finding  @relation(fields: [findingId], references: [id], onDelete: Cascade)
+}
+
+model SecurityRule {
+  id                  String    @id
+  name                String
+  category            String
+  severity            Severity
+  version             String    @default("1.0.0")
+  description         String
+  impact              String
+  remediationTemplate String
+  cwe                 String?
+  owaspCategory       String?
+  createdAt           DateTime  @default(now())
+
+  findings            Finding[]
+}
+
+model RiskScore {
+  id            String   @id @default(uuid())
+  scanId        String   @unique
+  overallScore  Int
+  grade         String
+  criticalCount Int
+  highCount     Int
+  mediumCount   Int
+  lowCount      Int
+  infoCount     Int
+  deductions    Json
+  createdAt     DateTime @default(now())
+
+  scan          Scan     @relation(fields: [scanId], references: [id], onDelete: Cascade)
+}
+
+model AIAnalysis {
+  id                  String   @id @default(uuid())
+  findingId           String   @unique
+  contentHash         String
+  plainExplanation    String
+  businessImpact      String
+  technicalExplanation String
+  developerFix        String
+  validationSteps     Json
+  priorityReasoning   String
+  tokenUsage          Json?
+  createdAt           DateTime @default(now())
+
+  finding             Finding  @relation(fields: [findingId], references: [id], onDelete: Cascade)
+
+  @@index([contentHash])
+}
+
+// ==========================================
+// Reporting, Audit & Auxiliary
+// ==========================================
+
+model Report {
+  id             String       @id @default(uuid())
+  organizationId String
+  scanId         String
+  title          String
+  s3Key          String?
+  downloadUrl    String?
+  generatedAt    DateTime     @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  scan           Scan         @relation(fields: [scanId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([scanId])
+}
+
+model AuditLog {
+  id             String       @id @default(uuid())
+  organizationId String
+  userId         String?
+  action         String
+  resourceType   String
+  resourceId     String
+  ipAddress      String?
+  userAgent      String?
+  metadata       Json?
+  createdAt      DateTime     @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model ApiKey {
+  id             String       @id @default(uuid())
+  organizationId String
+  userId         String
+  name           String
+  keyHash        String       @unique
+  prefix         String
+  lastUsedAt     DateTime?
+  expiresAt      DateTime?
+  createdAt      DateTime     @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([keyHash])
+}
+
+model Plan {
+  id                String   @id @default(uuid())
+  name              String   @unique
+  tier              String   @unique
+  maxAssets         Int
+  maxScansPerMonth  Int
+  priceMonthlyCents Int
+  isAgency          Boolean  @default(false)
+  createdAt         DateTime @default(now())
+}
